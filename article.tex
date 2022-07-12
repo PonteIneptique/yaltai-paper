@@ -118,28 +118,64 @@ In 2015, \textit{You Only Look Once} (YOLO) was released with its version 1 (YOL
 
 \section{Method}
 
-We propose to shift the layout analysis task from a pixel categorization or polygon segmentation task to an object detection task, where each region is an instance of a category of zone, mixing the segmentation and classification part of the layout analysis. 
+We propose to shift the layout analysis task from a pixel categorization or polygon segmentation task to an object detection task, where each region is an instance of a category of zone, mixing the segmentation and classification part of the layout analysis. For the purpose of this paper, we work only with isothetic rectangles which are produced by using the minimal and maximal $X$ and $Y$ of each polygon, which results in a more important area captured by each zone. 
 
-As the objective is to provide end users with a readily usable analysis of documents, the segmentation of zone should be fed in Kraken before the line detection is serialized, in order to dispatch lines into the various regions detected by YOLOv5.
+\begin{figure}
+    \centering
+    \includegraphics[width=.5\linewidth]{images/rectangulisation.jpg}
+    \caption{Example of polygon in the ground truth when the Kraken prediction is correct on the left. On the right, its simplification into an isothetic rectangle for object detection.}
+    \label{fig:yaltai:rectangulisation}
+\end{figure}
 
+In terms of software and model training, each model is kept independant: YoloV5 is trained within the YoloV5 framework and can profit from its ecosystem while Kraken line segmentation is also trained separately. Both model are then used together at inference or evaluation time.
 
+As the objective is to provide end-users with a readily usable analysis of documents, the segmentation of zone should be fed in Kraken before the line detection is serialized, in order to dispatch lines into the various regions detected by YOLOv5. YOLOv5's output is serialized in the same fashion as Kraken region's segmentation output, such that it fits the expected input. Kraken uses the interpolation of the baseline to find the middle point and then uses the presence of the calculated point inside the region polygon to decide whether it belongs to the region (see Figure \ref{fig:yaltai:injection} for the details of the workflow at prediction time).
+
+\begin{figure}
+    \centering
+    \includegraphics[width=.8\linewidth]{images/yaltaiinjection.png}
+    \caption{Workflow and responsibilities at inference time.}
+    \label{fig:yaltai:injection}
+\end{figure}
 
 \section{Experimental Setup}
 
+The experimental setup is focused on evaluating the gains in terms of accuracy of zone detection or segmentation in historical document with ``complex'' layout. We compare YoloV5 models to Kraken segmentation model using the same datasets (described below) with fix split and using Mean Average Precision (mAP) as well as Average Precision (AP) for each class of categories that are relevant to the qualitative analysis of results.
+
+\subsection{Datasets}
+
+We built two datasets for the experiment and both Kraken and YOLOv5 are trained on the same rectangle-converted dataset. The first dataset consists of manuscripts and early printed book (YALTAi-MSS-EPB) from the 9\textsuperscript{th} century up to the 17\textsuperscript{th} century. It is based on five datasets:
+
+\begin{itemize}
+    \item CREMMA Medieval \citep{pinche2022cremma} focused on manuscripts in Old French with various layout and the inclusion of microfilm digitizations (Microfilm being black and white pictures).
+    \item CREMMA Medieval LAT \citep{clerice2022cremma} contains manuscripts in Latin with different type of content, from poetry to medical content, which provides a diversity of layouts.
+    \item Eutyches \citep{vlachou-efstathiou2022voss} focused on two manuscripts from the early Middle Ages.
+    \item Two datasets from the Gallicorpora project (\citep{pinche2022donn, pinche2022donn2, pinche2022donn3}) containing either incunabilia, printed books with gothic scripts or manuscripts from the 15\textsuperscript{th} centuries, all writen in Old or Middle French.
+\end{itemize}
+
+On top of these five datasets, an addendum of 593 annotated images were produced for this paper to reach the objective of 1,000 images. This additional datasets provides a higher number of samples (123 different documents) and spans from the middle age to the early modern era (17\textsuperscript{th} century). These new annotated pages were produced with early version of the model and corrected by hand on the Roboflow application, thus they are more specific to the way YOLOv5 detects images and less prone to over-estimated area of polygon based on rectangle simplification as they are manually tuned to the images. The whole dataset uses Zone types from Segmonto, thus avoiding the project-specific and vocabulary free levels of subtypes and numbers that comes with Segmonto deeper levels.
+
+\begin{table}[h]
+    \centering
+\resizebox{\linewidth}{!}{%}
+    \begin{tabular}{l|rrrrrr}
+         \hline
+         Dataset & ``Books'' & Pages & Starting century & Ending century & Type & With B\&W \\ \hline
+         \citep{pinche2022cremma} & 13 & 263 & 12 & 15 & Manuscripts & Yes \\
+         \citep{clerice2022cremma} & 7 & 30 & 13 & 15 & Manuscripts & Yes \\ 
+         \citep{vlachou-efstathiou2022voss} & 2 & 129 & 9 & 9 & Manuscripts & No \\
+         \citep{pinche2022donn} & 4 & 80 & 15 & 15 & Printed & Yes \\
+         \citep{pinche2022donn2} & 13 & 149 & 15 & 15 & Manuscripts & No \\
+         \citep{pinche2022donn3} & 1 & 20 & 16 & 16 & Printed & No \\ \hline
+         \textit{Original Data} & 123 & 593 & 9 & 17 & Printed & No \\ \hline
+    \end{tabular}%
+    }
+    \caption{Quantitative and qualitative description of YALTAi MSS EPB. ``Books'' can be full manuscripts or printed books. \textit{Original data} are previously unpublished data produced directly using bounding boxes.}
+    \label{tab:dataset:mssepb}
+\end{table}
+
 \section{Experiments}
 
-\begin{table}[]
-\begin{center}
-\begin{tabular}{l|r|rrrr}
-\hline
-        & mAP           & Col           & Header       & Marginal \\ \hline
-Kraken  & 0.09          & 0.1           & 0.1          & N/A      \\
-YoloV5x & \textbf{4.77} & \textbf{12.9} & \textbf{1.4} & 0        \\  \hline       
-\end{tabular}
-\end{center}
-\label{tab:scores:table}
-\caption{Scores of Kraken and YoloV5 best models for the Table Dataset. \textit{Col}, \textit{Header} and \textit{Marginal} are the three detected kind of zones. Scores for zones are the Average Precision. Both Mean Average Precision and Average Precision are given in percents. The YoloV5x performs a hundred time better than Kraken on Columns while it has a 53 times higher mean Average Precision.}
-\end{table}
 
 
 \begin{table}[]
@@ -154,6 +190,19 @@ YoloV5n &         34.63  &        87.0   &         44.2   &         54.6    &   
 }
 \label{tab:scores:segmonto}
 \caption{Scores of Kraken and YoloV5 best models for the Segmonto MSS and Early Printed Books Dataset. Zones (Main, Graphic, Drop Capital, Margin Text, Numbering, Quire Marks, Running Title and Stamp) are the most important zones from the test dataset. Scores for zones are the Average Precision. Both Mean Average Precision and Average Precision are given in percents. Surprisingly, YoloV5n beats YoloV5x on RunningTitle but is most often largely outperformed on other zones. Kraken is completely outperformed with YoloV5x more than doubling its scores on the main body zones, and roughly multiplying it by 7 times for the mean average precision.}
+\end{table}
+
+\begin{table}[]
+\begin{center}
+\begin{tabular}{l|r|rrrr}
+\hline
+        & mAP           & Col           & Header       & Marginal \\ \hline
+Kraken  & 0.09          & 0.1           & 0.1          & N/A      \\
+YoloV5x & \textbf{4.77} & \textbf{12.9} & \textbf{1.4} & 0        \\  \hline       
+\end{tabular}
+\end{center}
+\label{tab:scores:table}
+\caption{Scores of Kraken and YoloV5 best models for the Table Dataset. \textit{Col}, \textit{Header} and \textit{Marginal} are the three detected kind of zones. Scores for zones are the Average Precision. Both Mean Average Precision and Average Precision are given in percents. The YoloV5x performs a hundred time better than Kraken on Columns while it has a 53 times higher mean Average Precision.}
 \end{table}
 
 
