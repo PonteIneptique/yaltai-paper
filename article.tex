@@ -59,7 +59,7 @@ ICDAR2017 had three relevant competitions:
     \item the \textit{competition on Layout Analysis for Challenging Medieval Manuscripts} (HisDoc-Layout-Comp).
 \end{itemize}
 
-While POD2017 sets the objective as a bounding box detection task, both HBA and HisDoc-Layout-Comp treats the task as a pixel labeling one, a pixel being able to be assigned to multiple task. Since 2017, deep learning models have emerged in the competition, specifically in HBA and HisDoc-Layout-Comp where CNN models shined. However, the shift from polygon detection at ICDAR2011 to pixel-based categorization at ICDAR 2019 creates a bias for the downstream task such as main body extraction: pixel categorization ignores the necessary serialization and clustering of said pixels into various zones that can then be filled with lines and content. This approach is specifically damageful in tools such as Kraken (v4.1.2) as it led to the creation of hacks, wich zones being qualified with \textit{ColumnEven} and \textit{ColumnOdd} systems in order to ensure the differentiation of columns in the clustering step.
+While POD2017 sets the objective as a bounding box detection task, both HBA and HisDoc-Layout-Comp treats the task as a pixel labeling one, a pixel being able to be assigned to multiple task. Since 2017, deep learning models have emerged in the competition, specifically in HBA and HisDoc-Layout-Comp where CNN models shined. However, the shift from polygon detection at ICDAR2011 to pixel-based categorization at ICDAR 2019 creates a bias for the downstream task such as main body extraction: pixel categorization ignores the necessary serialization and clustering of said pixels into various zones that can then be filled with lines and content. This approach is specifically damageful in tools such as Kraken (v4.1.2) as it led to the creation of hacks, wich zones being qualified with \textit{ColumnEven} and \textit{ColumnOdd} systems in order to ensure the differentiation of columns in the clustering step. Note that even stronger models such as ARU-NET and implemented by \citet{gruning2018arunet} only computes pixel classification and does not polygonize the output in its official implementation\footnote{\url{https://github.com/TobiasGruening/ARU-Net}}.
 
 With the specific purpose of training models on small datasets and document text extraction, we propose to approach the document segmentation as an object detection task, following the bounding box approach of ICDAR2017 instead of the polygon detection of ICDAR2011 or the pixel categorization of HBA or HisDoc-Layout-Comp. In this context, we propose two new datasets, a historical tabular document dataset (YALTAi-Tables) and a manuscripts and early printed book dataset (YALTAi-MSS-EPB). We do not propose a specific model but instead reuse 5\textsuperscript{th} version of You Only Look Once (YOLOv5)'s tools and models. Results show up to 100 times better results on column detection for tabular documents as well as doubles the score of main body document detection. As YOLOv5 base version is limited to ``straight'' boxes, it limits the application to lightly or unskewed documents. Bounding box can also overlap easily and we lose the precision of polygons.
 
@@ -144,16 +144,18 @@ The experimental setup is focused on evaluating the gains in terms of accuracy o
 
 \subsection{Datasets}
 
+\subsubsection{Manuscripts and Early Printed Books}
+
 We built two datasets for the experiment and both Kraken and YOLOv5 are trained on the same rectangle-converted dataset. The first dataset consists of manuscripts and early printed book (YALTAi-MSS-EPB) from the 9\textsuperscript{th} century up to the 17\textsuperscript{th} century. It is based on five datasets:
 
 \begin{itemize}
     \item CREMMA Medieval \citep{pinche2022cremma} focused on manuscripts in Old French with various layout and the inclusion of microfilm digitizations (Microfilm being black and white pictures).
     \item CREMMA Medieval LAT \citep{clerice2022cremma} contains manuscripts in Latin with different type of content, from poetry to medical content, which provides a diversity of layouts.
     \item Eutyches \citep{vlachou-efstathiou2022voss} focused on two manuscripts from the early Middle Ages.
-    \item Two datasets from the Gallicorpora project (\citep{pinche2022donn, pinche2022donn2, pinche2022donn3}) containing either incunabilia, printed books with gothic scripts or manuscripts from the 15\textsuperscript{th} centuries, all writen in Old or Middle French.
+    \item Two datasets from the Gallicorpora project (\citep{pinche2022mss, pinche2022goth}) containing either incunabilia, printed books with gothic scripts or manuscripts from the 15\textsuperscript{th} centuries, all writen in Old or Middle French.
 \end{itemize}
 
-On top of these five datasets, an addendum of 593 annotated images were produced for this paper to reach the objective of 1,000 images. This additional datasets provides a higher number of samples (123 different documents) and spans from the middle age to the early modern era (17\textsuperscript{th} century). These new annotated pages were produced with early version of the model and corrected by hand on the Roboflow application, thus they are more specific to the way YOLOv5 detects images and less prone to over-estimated area of polygon based on rectangle simplification as they are manually tuned to the images. The whole dataset uses Zone types from Segmonto, thus avoiding the project-specific and vocabulary free levels of subtypes and numbers that comes with Segmonto deeper levels.
+On top of these five datasets, we produced an addendum of 593 annotated images for this paper to reach the objective of 1,000 images. This additional datasets provides a higher number of samples (123 different documents) and spans from the middle age to the early modern era (17\textsuperscript{th} century). These new annotated pages were produced with early version of the model and corrected by hand on the Roboflow application, thus they are more specific to the way YOLOv5 detects images and less prone to over-estimated area of polygon based on rectangle simplification as they are manually tuned to the images. The whole dataset uses Zone types from Segmonto, thus avoiding the project-specific and vocabulary free levels of subtypes and numbers that comes with Segmonto deeper levels. 
 
 \begin{table}[h]
     \centering
@@ -164,19 +166,78 @@ On top of these five datasets, an addendum of 593 annotated images were produced
          \citep{pinche2022cremma} & 13 & 263 & 12 & 15 & Manuscripts & Yes \\
          \citep{clerice2022cremma} & 7 & 30 & 13 & 15 & Manuscripts & Yes \\ 
          \citep{vlachou-efstathiou2022voss} & 2 & 129 & 9 & 9 & Manuscripts & No \\
-         \citep{pinche2022donn} & 4 & 80 & 15 & 15 & Printed & Yes \\
-         \citep{pinche2022donn2} & 13 & 149 & 15 & 15 & Manuscripts & No \\
-         \citep{pinche2022donn3} & 1 & 20 & 16 & 16 & Printed & No \\ \hline
-         \textit{Original Data} & 123 & 593 & 9 & 17 & Printed & No \\ \hline
+         %\citep{pinche2022donn} & 4 & 80 & 15 & 15 & Printed & Yes \\
+         \citep{pinche2022mss} & 1 & 20 & 15 & 15 & Manuscripts & No \\
+         \citep{pinche2022goth} & 4 & 80 & 16 & 16 & Printed & No \\
+         \textit{Original Data} & 123 & 593 & 9 & 17 & Mixed & No \\ \hline
+         \textbf{Total} & 150 & 1110 & 9 & 17 & Mixed & Yes \\ \hline
     \end{tabular}%
     }
     \caption{Quantitative and qualitative description of YALTAi MSS EPB. ``Books'' can be full manuscripts or printed books. \textit{Original data} are previously unpublished data produced directly using bounding boxes.}
     \label{tab:dataset:mssepb}
 \end{table}
 
+Data were mixed randomly into 3 split for training (854 images), development (154) and test (139), with works being able to be in two or more splits. The MainZone bounding box are the largest areas of all zones and just behind the DropCapitalZone in terms of quantity. On the other hand, DigitizationArtefactZone and DamageZone are overly represented in the test set (see Table \ref{tab:comp:segmonto} for the statistical details).
+
+\begin{table}[ht]
+    \centering
+    \begin{tabular}{l|rrr|r|rr}
+    \hline
+                              &   Train &   Dev &   Test &   Total &   Average area &   Median area \\
+    \hline
+     DropCapitalZone          &    1537 &   180 &    222 &    1939 &           0.45 &          0.26 \\
+     MainZone                 &    1408 &   253 &    258 &    1919 &          28.86 &         26.43 \\
+     NumberingZone            &     421 &    57 &     76 &     554 &           0.18 &          0.14 \\
+     MarginTextZone           &     396 &    59 &     49 &     504 &           1.19 &          0.52 \\
+     GraphicZone              &     289 &    54 &     50 &     393 &           8.56 &          4.31 \\
+     MusicZone                &     237 &    71 &      0 &     308 &           1.22 &          1.09 \\
+     RunningTitleZone         &     137 &    25 &     18 &     180 &           0.95 &          0.84 \\
+     QuireMarksZone           &      65 &    18 &      9 &      92 &           0.25 &          0.21 \\
+     StampZone                &      85 &     5 &      1 &      91 &           1.69 &          1.14 \\
+     DigitizationArtefactZone &       1 &     0 &     32 &      33 &           2.89 &          2.79 \\
+     DamageZone               &       6 &     1 &     14 &      21 &           1.50 &          0.02 \\
+     TitlePageZone            &       4 &     0 &      1 &       5 &          48.27 &         63.39 \\
+    \hline
+    \end{tabular}
+    \caption{Caption}
+    \label{tab:comp:segmonto}
+\end{table}
+
+\subsubsection{Tabular dataset}
+\label{subsubsection:tabulardataset}
+
+The tabular dataset was produced using a single source, the \textit{Lectaurep Repertoires} dataset \citep{p2021notaires}, which served as a basis for only the training and developement split. The test set is composed of original data, from various documents, from the 17\textsuperscript{th} century up to the early 20\textsuperscript{th} with a single soldier war report. The test set is voluntarly very different and out of domain with column borders that are not drawn nor printed in certain case, layout in some kind of masonry layout (specifically for the soldier war report, see Figure \ref{fig:dataset:table}).
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\linewidth]{images/table.jpg}
+    \caption{Tabular dataset excerpts. Two images on the left are from the Lectaurep dataset, three images on the right are original data for the test set.}
+    \label{fig:dataset:table}
+\end{figure}
+
+The tabular dataset contains four kinds of zones: Col (Columns), Header, Marginal, Text. The test set was only annotated with Columns and Header, as marginal and text were not clearly defined. The tabular dataset was simplified from the original dataset from \citet{p2021notaires}, as it used a known hack to work ``as intended'' with Kraken. We knowingly put some stress on Kraken on this test. As Kraken relies on pixel classification and less on polygon or bounding box detection, it usually merges together regions of the same kind that are too close to each others. To reduce the effect of these merging errors, the trick learned by the community is to split zones into alternating names, such as ColOdd and ColEven. In the Lectaurep dataset, we found around 16 different way to describe columns, from Col1 to Col7, the case-different col1-col7 and finally ColPair and ColOdd, which we all reduced to Col (see Table \ref{tab:comp:tabular} for the statistical details).
+
+\begin{table}[]
+    \centering
+    \begin{tabular}{l|rrr|r|rr}
+    \hline
+              &   Train &   Dev &   Test &   Total &   Average area &   Median area \\
+    \hline
+     Col      &     724 &   105 &    829 &    1658 &           9.32 &          6.33 \\
+     Header   &     103 &    15 &     42 &     160 &           6.78 &          7.10 \\
+     Marginal &      60 &     8 &      0 &      68 &           0.70 &          0.71 \\
+     Text     &      13 &     5 &      0 &      18 &           0.01 &          0.00 \\
+    \hline
+    \end{tabular}
+    \caption{Annotation and details about the annotations accross splits of the tabular  dataset.}
+    \label{tab:comp:tabular}
+\end{table}
+
+\subsection{Model Training}
+
+\subsection{Evaluation}
+
 \section{Experiments}
-
-
 
 \begin{table}[]
 \resizebox{\linewidth}{!}{%}
@@ -192,18 +253,25 @@ YoloV5n &         34.63  &        87.0   &         44.2   &         54.6    &   
 \caption{Scores of Kraken and YoloV5 best models for the Segmonto MSS and Early Printed Books Dataset. Zones (Main, Graphic, Drop Capital, Margin Text, Numbering, Quire Marks, Running Title and Stamp) are the most important zones from the test dataset. Scores for zones are the Average Precision. Both Mean Average Precision and Average Precision are given in percents. Surprisingly, YoloV5n beats YoloV5x on RunningTitle but is most often largely outperformed on other zones. Kraken is completely outperformed with YoloV5x more than doubling its scores on the main body zones, and roughly multiplying it by 7 times for the mean average precision.}
 \end{table}
 
-\begin{table}[]
-\begin{center}
-\begin{tabular}{l|r|rrrr}
-\hline
-        & mAP           & Col           & Header       & Marginal \\ \hline
-Kraken  & 0.09          & 0.1           & 0.1          & N/A      \\
-YoloV5x & \textbf{4.77} & \textbf{12.9} & \textbf{1.4} & 0        \\  \hline       
-\end{tabular}
-\end{center}
+\begin{figure}
+\begin{minipage}{.5\linewidth}
+\centering
+\resizebox{.9\linewidth}{!}{%
+    \begin{tabular}{l|r|rrrr}
+    \hline
+            & mAP           & Col           & Header       \\ \hline
+    Kraken  & 0.09          & 0.1           & 0.1          \\
+    YoloV5x & \textbf{4.77} & \textbf{12.9} & \textbf{1.4} \\  \hline       
+    \end{tabular}%
+}
+\end{minipage}%
+\begin{minipage}{.5\linewidth}
+\includegraphics[width=\linewidth]{images/tableexemple.jpg}
+\end{minipage}%
 \label{tab:scores:table}
-\caption{Scores of Kraken and YoloV5 best models for the Table Dataset. \textit{Col}, \textit{Header} and \textit{Marginal} are the three detected kind of zones. Scores for zones are the Average Precision. Both Mean Average Precision and Average Precision are given in percents. The YoloV5x performs a hundred time better than Kraken on Columns while it has a 53 times higher mean Average Precision.}
-\end{table}
+\caption{On the left, scores of Kraken and YoloV5 best models for the Table Dataset. \textit{Col} and \textit{Header} are the only annotated zones in the test set. Scores for zones are the Average Precision. Both Mean Average Precision and Average Precision are given in percents. On the right, two example of predictions: we see that Kraken does not separate columns and merges up to four columns while YoloV5x fails to see only two columns but splits correctly the zones. See \ref{subsubsection:tabulardataset} for more explanation on the difficulties of the Kraken segmenter.}
+\end{figure}
+
 
 
 \begin{table}[]
