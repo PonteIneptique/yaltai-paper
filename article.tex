@@ -217,7 +217,7 @@ The tabular dataset was produced using a single source, the \textit{Lectaurep Re
 
 The tabular dataset contains four kinds of zones: Col (Columns), Header, Marginal, Text. The test set was only annotated with Columns and Header, as marginal and text were not clearly defined. The tabular dataset was simplified from the original dataset from \citet{p2021notaires}, as it used a known hack to work ``as intended'' with Kraken. We knowingly put some stress on Kraken on this test. As Kraken relies on pixel classification and less on polygon or bounding box detection, it usually merges together regions of the same kind that are too close to each others. To reduce the effect of these merging errors, the trick learned by the community is to split zones into alternating names, such as ColOdd and ColEven. In the Lectaurep dataset, we found around 16 different way to describe columns, from Col1 to Col7, the case-different col1-col7 and finally ColPair and ColOdd, which we all reduced to Col (see Table \ref{tab:comp:tabular} for the statistical details).
 
-\begin{table}[]
+\begin{table}[ht]
     \centering
     \begin{tabular}{l|rrr|r|rr}
     \hline
@@ -235,11 +235,35 @@ The tabular dataset contains four kinds of zones: Col (Columns), Header, Margina
 
 \subsection{Model Training}
 
+Kraken models were trained according to two different configuration, one with an input resize of 1200 and a second with an input resize of 640, like the recommended YOLOv5 input size. Although Kraken recommends since recently a 1800 resized input, the training, with shuffled input, crashed mainy times because of the GPU RAM limits (roughly 11 GiB). The model was trained for 50 epochs and the best model was selected according to mAP scoring on the development set. Scoring with mAP was produced outside of Kraken as the later does not provide a best model selection.
+
+YOLOv5 models were trained with the latest commit (29d79a6) from the 2\textsuperscript{nd} of July. For both dataset, a model was trained using a YOLOv5x weights for initialization. A second YOLOv5n model was trained for the YALTAi-MSS-EPB dataset to evaluate the impact of the reduction of the size of the models on results: YOLOv5x models is advertised as a 166MiB model while YOLOv5n weights only 4MiB. Both models were trained during 50 epochs. The best model for evaluation was chosen according to YOLOv5 appointed best model.
+
+Models were trained on a Nvidia RTX2080TI with 11GiB of RAM and a TDP of 250W, on Ubuntu with CUDA 10.2 on drivers 440.118.02.
+
 \subsection{Evaluation}
+
+The evaluation is done based on mean average precision (mAP) and average precision (AP). For fairness of the evaluation and to avoid any discrepancies in calculation framework, we used \texttt{mean-average-precision==2021.4.26.0} on the converted ALTO or the YOLOv5 text format. mAP is used with an intersection over union threshold of 0.5 (Usually noted mAP@.5).
 
 \section{Experiments}
 
-\begin{table}[]
+\subsection{Results for YALTAi MSS-EPB}
+
+On the YALTAi MSS-EPB, the mAP of Kraken (6.95\%) results is largely beaten by the YOLOv5x (47.75\%) and the YOLOv5n model (34.63\%, see Table \ref{tab:scores:segmonto}). This lower results is due in part to lower results for the MainZone and DropCapital recognition, which are the most common objects in all splits (YOLOv5n, the worst performing YOLOv5 model, doubles the performance of Kraken on MainZone and nearly triples them on DropCapital). On the other hand, Kraken is also unable to beat a 0\% AP on any of the less frequent objects such as MarginText, Numbering, QuireMarks or RunningTitle, lowering its capacity to reach a higher mAP. mAP being a macro-average metric, it favors models performing on all classes rather than a few classes. However, the score discrepancy on the MainZone is important enough that it wagers using YOLOv5 instead of Kraken segmenter for extracting main body of texts.
+
+As for the difference between the nano (YOLOv5n) and the extra-large (YOLOv5x) models, the difference is small enough on the most frequent zone to accept a performance drop for a faster computation time. However, the YOLOv5X is largely beaten on less frequent classes such as MarginTextZone or NumberingZone.
+
+\subsection{Results for YALTAi-Table}
+
+The results on YALTAi table are somewhat unfair to the Kraken segmenter but shows the impact of the object detection approach on a segmentation task. As seen in the example output at Figure \ref{tab:scores:table}, Kraken is unable to distinguish multiple column and often merges the various detected zones. 
+
+On the other hand, YOLOv5x shows a very high capacity to extend to different kind of inputs as the input tabular document is not from the LECTAUREP dataset nor is the same in terms of content. At best, the document is also a printed document with various columns filled with manuscript content. In terms of genericity and ability to learn, the test results show that YOLO can learn from very few documents compared to Kraken, as it misses few columns is
+
+\subsection{Efficiency}
+
+We monitored the GPU usage in terms of memory, time and power consumption during the training of all models (see Table \ref{tab:scores:configs}). On the same system, YOLOv5 has shown a better efficiency than Kraken for each model and metric except for Kraken on the tabular dataset and power consumption. The training time seems to scale with the batch size but we are unable to confirm it, as Kraken does not allow to use batches for training. The inference time was only reported for YOLOv5 models to show the overhead that it would cost per image prediction: YOLOv5 has been designed for quasi-real time prediction on video streams, which explains the very low inference time.
+
+\begin{table}[ht]
 \resizebox{\linewidth}{!}{%}
 \begin{tabular}{l|r|rrrrrrrrr}
 \hline
@@ -249,14 +273,14 @@ YoloV5x & \textbf{47.75} & \textbf{91.7} & \textbf{48.4}  & \textbf{69.2}   &  \
 YoloV5n &         34.63  &        87.0   &         44.2   &         54.6    &         13.9   &         43.0   &         25.0   &  \textbf{48.1} & \textbf{100} \\ \hline
 \end{tabular}%
 }
-\label{tab:scores:segmonto}
 \caption{Scores of Kraken and YoloV5 best models for the Segmonto MSS and Early Printed Books Dataset. Zones (Main, Graphic, Drop Capital, Margin Text, Numbering, Quire Marks, Running Title and Stamp) are the most important zones from the test dataset. Scores for zones are the Average Precision. Both Mean Average Precision and Average Precision are given in percents. Surprisingly, YoloV5n beats YoloV5x on RunningTitle but is most often largely outperformed on other zones. Kraken is completely outperformed with YoloV5x more than doubling its scores on the main body zones, and roughly multiplying it by 7 times for the mean average precision.}
+\label{tab:scores:segmonto}
 \end{table}
 
 \begin{figure}
 \begin{minipage}{.5\linewidth}
 \centering
-\resizebox{.9\linewidth}{!}{%
+\resizebox{.75\linewidth}{!}{%
     \begin{tabular}{l|r|rrrr}
     \hline
             & mAP           & Col           & Header       \\ \hline
@@ -264,35 +288,48 @@ YoloV5n &         34.63  &        87.0   &         44.2   &         54.6    &   
     YoloV5x & \textbf{4.77} & \textbf{12.9} & \textbf{1.4} \\  \hline       
     \end{tabular}%
 }
+\caption{Scores table.}
+\label{tab:scores:table}
 \end{minipage}%
 \begin{minipage}{.5\linewidth}
 \includegraphics[width=\linewidth]{images/tableexemple.jpg}
+\caption{Example outputs on the test set}
+\label{fig:output:table}
+\corrauthor{}{}
 \end{minipage}%
-\label{tab:scores:table}
 \caption{On the left, scores of Kraken and YoloV5 best models for the Table Dataset. \textit{Col} and \textit{Header} are the only annotated zones in the test set. Scores for zones are the Average Precision. Both Mean Average Precision and Average Precision are given in percents. On the right, two example of predictions: we see that Kraken does not separate columns and merges up to four columns while YoloV5x fails to see only two columns but splits correctly the zones. See \ref{subsubsection:tabulardataset} for more explanation on the difficulties of the Kraken segmenter.}
 \end{figure}
 
 
-
-\begin{table}[]
+\begin{table}[ht]
 \resizebox{\linewidth}{!}{%}
 \begin{tabular}{l|rrrrrrrr}
 \hline
-       & Dataset  & Batch Size & Architecture & Size            & GPU Power (Max)   & GPU RAM \% (Max)   & Training Time & Prediction Time \\ \hline
-Kraken & Table    & 1          & 640          & \textbf{5 mb}   & 202.1 W           & \textbf{25.44 \%}  &  00:50        &                 \\
-YoloV5 & Table    & 2          & 5x           & 175 mb          & \textbf{157.2 W}  & 67.85              &  00:25        &                 \\\hline
-Kraken & Segmonto & 1          & 1200         &         5 mb    & 236.1 W           & 66.02 \%           &  06:27        &                 \\
-YoloV5 & Segmonto & 2          & 5x           & 175 mb          & 160.43 W          & 39.31 \%           &  03:04        & 0.025s          \\
-YoloV5 & Segmonto & 2          & 5n           & \textbf{3.9 mb} & \textbf{54.05 W}  & \textbf{11.5 \%}   &  03:11        & 0.004s          \\ \hline
+       & Dataset  & Batch Size & Architecture & Size (MiB)      & GPU Power (Max W) & GPU RAM \% (Max)   & Training Time   & Prediction Time \\ \hline
+Kraken & Table    & 1          & 640          & \textbf{5}      & 202.1             & \textbf{25.44 \%}  &  00:50          & -               \\
+YoloV5 & Table    & 2          & 5x           & 175             & \textbf{157.2  }  & 67.85              &  \textbf{00:25} & -               \\\hline
+Kraken & Segmonto & 1          & 1200         &         5       & 236.1             & 66.02 \%           &  06:27          & -               \\
+YoloV5 & Segmonto & 2          & 5x           & 175             & 160.43            & 39.31 \%           &  \textbf{03:04} & 0.025s          \\
+YoloV5 & Segmonto & 2          & 5n           & \textbf{3.9}    & \textbf{54.05  }  & \textbf{11.5 \%}   &  03:11          & \textbf{0.004s} \\ \hline
 \end{tabular}%\
 }
+\caption{Other metrics related to Kraken and YoloV5. YoloV5x produces the heaviest model (175mb, 35 times the weight of the Kraken model) but uses at most 77\% of the maximum power draw of Kraken. Training time is generally doubled under Kraken but corresponds roughly to the batch size division. Prediction time is per image. For the Segmonto model, the maximum GPU RAM usage is halved for YoloV5N, while using a batch of 2, but is nearly three times the footprint of Kraken for the Table dataset. Training occured on a NVIDIA RTX2080TI with a rated 250W of powers and 11,018MiB of RAM on drivers 440.118.02 and CUDA 10.2.}
 \label{tab:scores:configs}
-\caption{Other metrics related to Kraken and YoloV5. YoloV5x produces the heaviest model (175mb, 35 times the weight of the Kraken model) but uses at most 77\% of the maximum power draw of Kraken. Training time is generally doubled under Kraken. For the segmonto model, the maximum GPU RAM usage is halved for YoloV5N, while using a batch of 2, but is nearly three times the footprint of Kraken for the Table dataset.}
 \end{table}
 
 \section{Conclusions}
 
+Handwritten Text Recognition or Optical Character Recognition are the second step in text acquisition, right after layout analysis. However, in the main open source system used in the humanities, Kraken, the layout analysis under-performs severely on small datasets, moreover for close-neighbours same-class regions, as they are often merges. For text extraction, identifying regions is of primordial importance as they can help filter our noise from running titles or marginal addendum, for both manuscripts and printed books.
+
+In this paper, we proposed to shift the layout analysis task to an object detection task, shifting in terms of predicted output from polygons to isothetic bounding box in the context of YOLOv5. We show that YOLOv5 severely outperforms Kraken on the same dataset for region segmentation, both in terms of evaluation metrics and GPU efficiency (Power usage and RAM).
+
+The drawback of this approach lies in the bounding box limitations: bounding box limits us to regions that are rectangle and can't cover complex polygons such as P-shaped ones. We used YOLOv5 which limits us to isothetic bounding box but note that a YOLOv5 Oriented Bounding Box (YOLOv5-OBB) adaptation exists and could help for documents such as table for a ``perfect'' coverage of each column without pre-processing and deskewing.
+
+Taking advantage of the easy to use, open-sourced and openly licensed python API of Kraken, we are able to often a new package, YALTAi, which simply plugs in the YOLOv5 model before line dispatching across regions. It possess the same segmentation CLI interface as Kraken but adds a simple \texttt{--yolo} parameters that allows for selecting a YOLOv5 model for region segmentation.
+
 \subsection{Acknowledgements}
+
+This work was made possible through the funding of the DIM MAP, now DRIM PAMIR.
 
 \bibliographystyle{plainnat}
 \bibliography{article}
