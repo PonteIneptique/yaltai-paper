@@ -61,7 +61,7 @@ ICDAR2017 had three relevant competitions:
 
 While POD2017 sets the objective as a bounding box detection task, both HBA and HisDoc-Layout-Comp treats the task as a pixel labelling one, a pixel can be assigned to multiple classes. Since 2017, deep learning models have emerged in the competition, specifically in HBA and HisDoc-Layout-Comp where CNN models shined. However, the shift from polygon detection at ICDAR2011 to pixel-based categorization at ICDAR 2019 creates a bias for the downstream task such as main body extraction: pixel categorization ignores the necessary serialization and clustering of said pixels into various zones that can then be filled with lines and content. This approach is specifically damageful in tools such as Kraken (v4.1.2) as it led to the creation of hacks, wich zones being qualified with \textit{ColumnEven} and \textit{ColumnOdd} systems in order to ensure the differentiation of columns in the clustering step. Note that even stronger models such as ARU-NET and implemented by \citet{gruning2018arunet} only computes pixel classification and does not polygonize the output in its official implementation\footnote{\url{https://github.com/TobiasGruening/ARU-Net}}.
 
-With the specific purpose of training models on small datasets and document text extraction, we propose to approach the document segmentation as an object detection task, following the bounding box approach of ICDAR2017 instead of the polygon detection of ICDAR2011 or the pixel categorization of HBA or HisDoc-Layout-Comp. In this context, we propose two new datasets, a historical tabular document dataset (YALTAi-Tables) and a manuscripts and early printed book dataset (YALTAi-MSS-EPB). We do not propose a specific model but instead reuse 5\textsuperscript{th} version of You Only Look Once (YOLOv5)'s tools and models. Results show up to 100 times better results on column detection for tabular documents as well as double the score of main body document detection. As YOLOv5 base version is limited to ``straight'' boxes, it limits the application to lightly or unskewed documents. Bounding box can also overlap easily and we lose the precision of polygons.
+With the specific purpose of training models on small datasets and document text extraction, we propose to approach the document segmentation as an object detection task, following the bounding box approach of ICDAR2017 instead of the polygon detection of ICDAR2011 or the pixel categorization of HBA or HisDoc-Layout-Comp. In this context, we propose two new datasets, a historical tabular document dataset (YALTAi-Tables \citep{clerice_thibault_2022_6827706}) and a manuscripts and early printed book dataset (YALTAi-MSS-EPB \citep{clerice2022yaltaimss}). We do not propose a specific model but instead reuse 5\textsuperscript{th} version of You Only Look Once (YOLOv5)'s tools and models. Results show up to 100 times better results on column detection for tabular documents as well as double the score of main body document detection. As YOLOv5 base version is limited to ``straight'' boxes, it limits the application to lightly or unskewed documents. Bounding box can also overlap easily and we lose the precision of polygons.
 
 \begin{figure}[ht]
     \centering
@@ -199,7 +199,7 @@ Data were mixed randomly into 3 split for training (854 images), development (15
      TitlePageZone            &       4 &     0 &      1 &       5 &          48.27 &         63.39 \\
     \hline
     \end{tabular}
-    \caption{Caption}
+    \caption{Distribution of objects instances across datasets splits after random shuffling of pages for the YALTAi-MSS-EPB dataset.}
     \label{tab:comp:segmonto}
 \end{table}
 
@@ -329,7 +329,7 @@ Taking advantage of the easy to use, open-sourced and openly licensed python API
 
 \subsection{Acknowledgements}
 
-This work was made possible through the funding of the DIM MAP, now DRIM PAMIR.
+This work was made possible through the funding of the DIM MAP, now called DRIM PAMIR.
 
 \bibliographystyle{plainnat}
 \bibliography{article}
